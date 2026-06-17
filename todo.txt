@@ -1,0 +1,14 @@
+[ ] - 
+
+What i expect to have in terms of the architecture when i finish:
+  - Text ops are general for multi text and are used as building blocks 
+    for any text op. They have no connection to handling of the ops 
+    or the state to which something is going to aply them to.
+    They will be made for multi line but also be used for single line.
+    Maybe will even be such a bit piece of code that i could separate it
+    into its own logic in some other place that just handles text or
+    some like that. For example i could have it also work
+    with utf and such things and maybe even other encoding 
+    separate from the string logic. Or maybe i would have it be build on the string logic or some like that, will see.
+
+  -   
