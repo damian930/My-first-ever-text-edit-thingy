@@ -181,6 +181,14 @@ UI_Text_op_list ui_text_op_list_from_os_event_list(Arena* arena, OS_Event_list* 
           if (ev->key_event.modifiers & OS_Event_modifier__shift) { move->keep_section_start_after_op = true; }
         } break;
 
+        case Key__arrow_down:
+        {
+          UI_Text_op* move = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+          move->opt_os_event = ev; 
+          move->move_specifier = UI_Text_op_move_specifier___move_1_line_down;
+          if (ev->key_event.modifiers & OS_Event_modifier__shift) { move->keep_section_start_after_op = true; }
+        } break;
+
         case Key__home:
         {
           UI_Text_op* op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
@@ -249,25 +257,66 @@ UI_Text_op_list ui_text_op_list_from_os_event_list(Arena* arena, OS_Event_list* 
           else if (ev->key_event.key == Key__v && ev->key_event.modifiers & OS_Event_modifier__control) // Paste
           {
             UI_Text_op* ______________ = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__delete_section);
-            UI_Text_op* final_paste_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__paste_at_cursor);
-            final_paste_op->opt_os_event = ev;
+            
+            UI_Text_op* paste_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__paste_at_cursor);
+            paste_op->opt_os_event = ev;
           }
           else if (ev->key_event.key == Key__x && ev->key_event.modifiers & OS_Event_modifier__control) // Cut
           {
+            UI_Text_op* line_end_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            line_end_op->move_specifier = UI_Text_op_move_specifier___move_to_line_start;
+            line_end_op->discard_op_if_section = true;
+
+            UI_Text_op* prev_line_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            prev_line_op->move_specifier = UI_Text_op_move_specifier___move_to_line_end;
+            prev_line_op->discard_op_if_section = true;
+            prev_line_op->keep_section_start_after_op = true;
+
             UI_Text_op* copy_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__copy_section);
             copy_op->keep_section_start_after_op = true;
-            UI_Text_op* final_delete_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__delete_section);
-            final_delete_op->opt_os_event = ev;
+
+            UI_Text_op* delete_section_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__delete_section);
+            delete_section_op->opt_os_event = ev;
+
+            UI_Text_op* move_to_line_above_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            move_to_line_above_op->move_specifier = UI_Text_op_move_specifier___move_1_line_up;
+            move_to_line_above_op->keep_section_start_after_op = true;
+
+            UI_Text_op* move_to_line_end_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            move_to_line_end_op->move_specifier = UI_Text_op_move_specifier___move_to_line_end;
+            move_to_line_end_op->keep_section_start_after_op = true;
+
+            UI_Text_op* delete_section_op_2 = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__delete_section);
           }
           else if (ev->key_event.key == Key__a && ev->key_event.modifiers & OS_Event_modifier__control) // Select all
           {
-            UI_Text_op* move_1 = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
-            move_1->move_specifier = UI_Text_op_move_specifier___move_to_line_start;
+            // todo: In vs code this doesnt move you to the cursor.
+            //       This is either achieved by more flags to the fat part of the struct,
+            //       or some other way, thought i dont like putting the draw state for the text
+            //       here, since this is for the data of the text, not sure yet, will do this later
 
-            UI_Text_op* move_2 = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
-            move_2->opt_os_event = ev;
-            move_2->move_specifier = UI_Text_op_move_specifier___move_to_line_end;
-            move_2->keep_section_start_after_op = true;
+            UI_Text_op* last_line_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            last_line_op->move_specifier = UI_Text_op_move_specifier___move_to_last_line;
+
+            UI_Text_op* end_line_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            end_line_op->move_specifier = UI_Text_op_move_specifier___move_to_line_end;
+
+            UI_Text_op* first_line_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            first_line_op->move_specifier = UI_Text_op_move_specifier___move_to_first_line;
+            first_line_op->keep_section_start_after_op = true;
+
+            UI_Text_op* start_of_line_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            start_of_line_op->move_specifier = UI_Text_op_move_specifier___move_to_line_start;
+            start_of_line_op->keep_section_start_after_op = true;
+          }
+          else if (ev->key_event.key == Key__l && ev->key_event.modifiers & OS_Event_modifier__control) // Select line
+          {
+            UI_Text_op* move_to_line_end_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            move_to_line_end_op->move_specifier = UI_Text_op_move_specifier___move_to_line_end;
+
+            UI_Text_op* move_to_line_start_op = ui_text_op_list_push(arena, &result_op_list, UI_Text_op_kind__move_cursor);
+            move_to_line_start_op->move_specifier = UI_Text_op_move_specifier___move_to_line_start;
+            move_to_line_start_op->keep_section_start_after_op = true;
           }
           else 
           {
@@ -297,7 +346,14 @@ UI_Text_op_list ui_text_op_list_from_os_event_list(Arena* arena, OS_Event_list* 
 // - Text editing state thing to be able to modify based on text ops
 //
 
-// TODO: Might be a good idea to decouple it from S
+U64 app_get_n_lines(Str8 text)
+{
+  Scratch scratch  = get_scratch(0, 0);
+  Str8_list lines = str8_split_ex(scratch.arena, text, Str8FromC("\n"), 0, true);
+  end_scratch(&scratch);
+  return lines.node_count;
+}
+
 Str8 app_get_text_line_for_coord(Str8 text, Text_coord coord, B32* opt_out_has_line)
 {
   Scratch scratch  = get_scratch(0, 0);
@@ -402,7 +458,8 @@ U64 app_str_index_from_text_coord(Str8 str, Text_coord coord)
 
 void app_get_line_section_parts(
   Str8 text, U64 line_index, Text_coord section_first_boundary, Text_coord section_other_boundary, 
-  Str8* part_before_section, Str8* part_inside_section, Str8* part_after_section // THESE ARE MANDATORY 
+  Str8* part_before_section, Str8* part_inside_section, Str8* part_after_section, 
+  B32* is_this_line_last_for_section, B32* is_line_part_of_section
 ) {
   Text_coord section_start = text_coord_smaller(section_first_boundary, section_other_boundary);
   Text_coord section_end   = text_coord_larger(section_first_boundary, section_other_boundary);
@@ -433,10 +490,144 @@ void app_get_line_section_parts(
   *part_before_section = str8_substring(line, 0, section_left_boundary_for_line);
   *part_inside_section = str8_substring(line, section_left_boundary_for_line, section_right_boundary_for_line);
   *part_after_section  = str8_substring(line, section_right_boundary_for_line, line.count);
+  *is_this_line_last_for_section = (section_end.y == line_index);
+  *is_line_part_of_section       = (section_start.y <= line_index && line_index <= section_end.y);
 }
 
+Text_coord app_move_with_control_left(Str8 str, Text_coord coord) 
+{
+  Str8 line = app_get_text_line_for_coord(str, coord, 0);
+  Assert(coord.x <= line.count);
 
-void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
+  B32 go_to_prev_word_left_boundary_on_line = true;
+
+  // At the start of the line
+  if (coord.x == 0)
+  {
+    if (coord.y > 0)
+    {
+      coord.y -= 1;
+      Str8 prev_line = app_get_text_line_for_coord(str, coord, Null);
+      coord.x = prev_line.count;
+      line = prev_line;
+    } 
+    else {
+      go_to_prev_word_left_boundary_on_line = false;
+    }
+  }
+
+  if (go_to_prev_word_left_boundary_on_line)
+  {
+    B32 is_done = false;
+    
+    if (!is_done)
+    {
+      // Might be outside a word, have to move to the word end
+      for (;;)
+      {
+        if (coord.x == 0) { is_done = true; break; }                 
+        if (char_is_word_char(line.data[coord.x - 1])) { break; } 
+        coord.x -= 1;
+      }
+    }
+
+    if (!is_done)
+    {
+      // Migth be inside a word now, have to move to the start of it
+      for (;;)
+      {
+        if (coord.x == 0) { is_done = true; break; }                 
+        if (!char_is_word_char(line.data[coord.x - 1])) { is_done = true; break; } 
+        coord.x -= 1;
+      }
+    }
+  }
+
+  return coord;
+}
+
+Text_coord app_move_with_control_right(Str8 str, Text_coord coord) 
+{
+  Str8 line = app_get_text_line_for_coord(str, coord, 0);
+  Assert(coord.x <= line.count);
+
+  B32 go_to_next_word_right_boundary_on_line = true;
+
+  // At the end of the line
+  if (coord.x == line.count)
+  {
+    B32 next_line_exists = false;
+    Str8 next_line = app_get_text_line_for_line_index(str, coord.y + 1, &next_line_exists);
+    if (next_line_exists)
+    {
+      line = next_line;
+      coord.y += 1;
+      coord.x = 0;
+    }
+    else {
+      go_to_next_word_right_boundary_on_line = false;
+    }
+  }
+
+  if (go_to_next_word_right_boundary_on_line)
+  {
+    B32 is_done = false;
+    
+    if (!is_done)
+    {
+      // Might be outside a word, have to move to the start of the word
+      for (;;)
+      {
+        if (coord.x == line.count) { is_done = true; break; }                 
+        if (char_is_word_char(line.data[coord.x])) { break; } 
+        coord.x += 1;
+      }
+    }
+
+    if (!is_done)
+    {
+      // Migth be inside a word now, have to move to the end of it
+      for (;;)
+      {
+        if (coord.x == line.count) { is_done = true; break; }                 
+        if (!char_is_word_char(line.data[coord.x])) { is_done = true; break; } 
+        coord.x += 1;
+      }
+    }
+  }
+
+  return coord;
+}
+
+U64 app_get_text_x_coord_for_x_point(Str8 line, FP_Font font, F32 x_offset)
+{
+  U64 result_cursor_x = 0;
+  F32 range_start_pos = 0.0f;
+  for EachIndex(i, line.count)
+  {
+    Str8 char_str       = str8_substring(line, i, i + 1);
+    F32 char_width      = fp_measure_text(char_str, font).x;
+    RangeF32 char_range = rangeF32(range_start_pos, range_start_pos + char_width);
+    range_start_pos += char_width;
+    
+    if (rangeF32_within(char_range, x_offset))
+    {
+      result_cursor_x = i;
+      if (x_offset > rangeF32_center(char_range)) {
+        result_cursor_x += 1;
+      }
+      break;
+    }
+  }
+
+  if (result_cursor_x == 0 && x_offset >= range_start_pos) { 
+    result_cursor_x = line.count;
+  } 
+
+  return result_cursor_x;
+}
+
+void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_Font font)
 {
   U8* text_buffer        = S->buffer;
   U64* text_buffer_count = &S->buffer_count;
@@ -445,6 +636,11 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
 
   for (UI_Text_op* text_op = text_op_list.first; text_op != 0; text_op = text_op->next)
   {
+    if (!text_coord_eq(*cursor, *section) && text_op->discard_op_if_section)
+    {
+      goto op_processing_done;
+    }
+
     switch (text_op->kind)
     { 
       default: {} break;
@@ -487,62 +683,80 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
             *cursor = app_move_text_coord_1_char_right(text_buffer_str, *cursor); 
           } break;
 
+          case UI_Text_op_move_specifier___move_1_word_left:  
+          {
+            *cursor = app_move_with_control_left(text_buffer_str, *cursor); 
+          } break;
+          
+          case UI_Text_op_move_specifier___move_1_word_right: 
+          { 
+            *cursor = app_move_with_control_right(text_buffer_str, *cursor); 
+          } break;
+
+          case UI_Text_op_move_specifier___move_to_line_start: 
+          { 
+            cursor->x = 0; 
+          } break;
+          case UI_Text_op_move_specifier___move_to_line_end: 
+          { 
+            cursor->x = app_get_text_line_for_line_index(text_buffer_str, cursor->y, 0).count;
+          } break;
+
           /*
-          case UI_Text_op_move_specifier___move_1_word_left:  { *cursor_pos = __ui_move_with_control_left(str8_manual(text_buffer, *current_text_size), *cursor_pos); } break;
-          case UI_Text_op_move_specifier___move_1_word_right: { *cursor_pos = __ui_move_with_control_right(str8_manual(text_buffer, *current_text_size), *cursor_pos); } break;
-
-          case UI_Text_op_move_specifier___move_to_line_start: { cursor_pos->x = 0; } break;
-          case UI_Text_op_move_specifier___move_to_line_end:   { cursor_pos->x = __ui_get_text_line_from_text(str8_manual(text_buffer, *current_text_size), cursor_pos->y, 0).count; } break;
-
           case UI_Text_op_move_specifier___move_specific_position: { *cursor_pos = text_op->cursor_specific_pos;  }
+          */
 
           case UI_Text_op_move_specifier___move_1_line_up: 
           { 
-            // If top line then move 1 left
-            if (cursor_pos->y == 0) { 
-              if (cursor_pos->x > 0) {
-                cursor_pos->x -= 1; 
-              }
-            }
+            if (cursor->y == 0) { cursor->x = 0;  }
             else 
             {
-              Str8 line = __ui_get_text_line_from_text(str8_manual(text_buffer, *current_text_size), cursor_pos->y, Null);
-              Str8 line_part_before_cursor = str8_substring(line, 0, cursor_pos->x);
+              Str8 line_before_move_up = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
+              Str8 line_part_before_cursor = str8_substring(line_before_move_up, 0, cursor->x);
               F32 x_offset = fp_measure_text(line_part_before_cursor, font).x;
 
-              if (cursor_pos->y > 0)
-              {
-                cursor_pos->y -= 1;
-                line = __ui_get_text_line_from_text(str8_manual(text_buffer, *current_text_size), cursor_pos->y, Null);
-
-                U64 result_cursor_x = 0;
-                F32 range_start_pos = 0.0f;
-                for EachIndex(i, line.count)
-                {
-                  Str8 char_str       = str8_substring(line, i, i + 1);
-                  F32 char_width      = fp_measure_text(char_str, font).x;
-                  RangeF32 char_range = rangeF32(range_start_pos, range_start_pos + char_width);
-                  range_start_pos += char_width;
-                  
-                  if (rangeF32_within(char_range, x_offset))
-                  {
-                    result_cursor_x = i;
-                    if (x_offset > rangeF32_center(char_range)) {
-                      result_cursor_x += 1;
-                    }
-                    break;
-                  }
-                }
-  
-                if (result_cursor_x == 0 && x_offset >= range_start_pos) { 
-                  result_cursor_x = line.count;
-                } 
-              }
+              cursor->y -= 1;
+              Str8 line_above = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
+              
+              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_above, font, x_offset);
+              cursor->x = result_cursor_x;
             }
           } break;
-          */
           
-          default: { InvalidCodePath(); } break;
+          case UI_Text_op_move_specifier___move_1_line_down:
+          {
+            U64 n_lines = app_get_n_lines(text_buffer_str);
+
+            Str8 line_before_went_down = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
+
+            if (cursor->y == n_lines) {  cursor->x = line_before_went_down.count;  }
+            else 
+            {
+              Str8 line_part_before_cursor = str8_substring(line_before_went_down, 0, cursor->x);
+              F32 x_offset = fp_measure_text(line_part_before_cursor, font).x;
+
+              cursor->y += 1;
+              Str8 line_down = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
+              
+              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_down, font, x_offset);
+              cursor->x = result_cursor_x;
+            }
+
+          } break;
+
+          case UI_Text_op_move_specifier___move_to_first_line:
+          { 
+            cursor->y = 0;
+          } 
+          break;
+          
+          case UI_Text_op_move_specifier___move_to_last_line:
+          { 
+            cursor->y = app_get_n_lines(text_buffer_str) - 1;
+          } 
+          break;
+          
+          default: {} break;
         }
 
         end_of_move_op_processing: {}
@@ -550,36 +764,28 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
 
       case UI_Text_op_kind__delete_section:
       {
-        Str8 text_buffer_str = str8_manual(text_buffer, *text_buffer_count);
+
+        // todo: Why not just get the index for the text buffer befor the section start
+        //       then get it for the section end, those not have the separateors, then just
+        //      include those in and we good to go ??
 
         if (!text_coord_eq(*cursor, *section))
         {
           Scratch scratch = get_scratch(0, 0);
+          Str8 text_buffer_str = str8_manual(text_buffer, *text_buffer_count);
+
+          Text_coord section_start = text_coord_smaller(*section, *cursor);
+          Text_coord section_end   = text_coord_larger(*section, *cursor);
+
+          U64 section_start_text_index = app_str_index_from_text_coord(text_buffer_str, section_start);
+          U64 section_end_text_index = app_str_index_from_text_coord(text_buffer_str, section_end);
 
           Str8_list line_parts = {};
+          Str8 text_part_before_section = str8_substring(text_buffer_str, 0, section_start_text_index);
+          Str8 text_part_after_section = str8_substring(text_buffer_str, section_end_text_index, text_buffer_str.count);
+          str8_list_append(scratch.arena, &line_parts, text_part_before_section);
+          str8_list_append(scratch.arena, &line_parts, text_part_after_section);
 
-          U64 line_index = 0;
-          for (;; line_index += 1)
-          {
-            B32 is_line = false; 
-            Str8 line   = app_get_text_line_for_line_index(text_buffer_str, line_index, &is_line);
-            if (!is_line) { break; }
-            
-            Str8 part_before_section = {};
-            Str8 part_inside_section = {};
-            Str8 part_after_section  = {};
-            app_get_line_section_parts(
-              text_buffer_str,
-              line_index, 
-              *cursor, *section,
-              &part_before_section, &part_inside_section, &part_after_section
-            );
-
-            str8_list_append(scratch.arena, &line_parts, part_before_section);
-            str8_list_append(scratch.arena, &line_parts, part_after_section);
-            str8_list_append(scratch.arena, &line_parts, Str8FromC("\n"));
-          }
-          
           Str8 new_str = str8_from_list(scratch.arena, &line_parts);
           for EachIndex(i, new_str.count) { text_buffer[i] = new_str.data[i]; }
           *text_buffer_count = new_str.count;
@@ -603,51 +809,24 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
       } break;
       */
 
-      /*
-      case UI_Text_op_kind__paste_at_cursor:
-      {
-        BP;
-        // todo: No raylib any more, have to use clipboard from win32 now buddy
-
-        // Pasting 
-        // Str8 buffer_as_str = str8_manuall(text_buffer, *current_text_size);
-        // Scratch scratch = get_scratch(0, 0);
-        // Str8_list str_parts = {};
-        // Str8 str_part_before_insert = str8_substring(buffer_as_str, 0, *cursor_pos);
-        // Str8 str_part_after_insert = str8_substring(buffer_as_str, *cursor_pos, *current_text_size);
-        // Str8 str_to_insert = {};
-        // {
-        //   char* clb_text = const_cast<char*>(GetClipboardText()); // todo: Remove this cpp shit here
-        //   str_to_insert = str8_from_cstr(scratch.arena, (U8*)clb_text);
-        // }
-        // str8_list_append(scratch.arena, &str_parts, str_part_before_insert);
-        // str8_list_append(scratch.arena, &str_parts, str_to_insert);
-        // str8_list_append(scratch.arena, &str_parts, str_part_after_insert);
-        // Str8 new_str = str8_from_list(scratch.arena, &str_parts);
-        // Assert(new_str.count > *current_text_size);  
-        // for EachIndex(i, Min(new_str.count, max_text_size) ) { text_buffer[i] = new_str.data[i]; }
-        // *current_text_size = Min(new_str.count, max_text_size);
-        // end_scratch(&scratch);
-      
-        // // Moving the cursor
-        // *cursor_pos += str_to_insert.count; // todo: This will be wrong if overflow, fix this
-      
-        if (opt_out_did_text_change) { *opt_out_did_text_change = true; }
-        
-      } break;
-      */
-
       case UI_Text_op_kind__insert_char_at_cursor:
+      case UI_Text_op_kind__paste_at_cursor:
       {
         Scratch scratch    = get_scratch(0, 0);
         Str8 buffer_as_str = str8_manual(text_buffer, *text_buffer_count);
         
         U64 in_text_index_for_cursor = app_str_index_from_text_coord(buffer_as_str, *cursor);
         
+        Str8 str_to_insert = {};
+        if (text_op->kind == UI_Text_op_kind__insert_char_at_cursor) {
+          str_to_insert = str8_from_cstr_len(scratch.arena, &text_op->char_to_insert, 1);
+        } else {
+          str_to_insert = os_get_clipboard_text(scratch.arena);
+        }
+        
         Str8_list str_parts          = {};
         Str8 str_part_before_insert  = str8_substring(buffer_as_str, 0, in_text_index_for_cursor);
         Str8 str_part_after_insert   = str8_substring(buffer_as_str, in_text_index_for_cursor, *text_buffer_count);
-        Str8 str_to_insert           = str8_from_cstr_len(scratch.arena, &text_op->char_to_insert, 1);
         str8_list_append(scratch.arena, &str_parts, str_part_before_insert);
         str8_list_append(scratch.arena, &str_parts, str_to_insert);
         str8_list_append(scratch.arena, &str_parts, str_part_after_insert);
@@ -656,6 +835,17 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
         for EachIndex(i, Min(new_str.count, ArrayCount(S->buffer)) ) { text_buffer[i] = new_str.data[i]; }
         *text_buffer_count = Min(new_str.count, ArrayCount(S->buffer));
         
+        // Redoing the buffer view since we just changed it
+        buffer_as_str = str8_manual(text_buffer, *text_buffer_count);
+
+        // Paste moves the cursor while the regular insers dont, yeh yeh, i know its inconsistent right now
+        if (text_op->kind == UI_Text_op_kind__paste_at_cursor) {
+          for EachIndex(i, str_to_insert.count)
+          {
+            *cursor = app_move_text_coord_1_char_right(buffer_as_str, *cursor);
+          }
+        }
+
         end_scratch(&scratch);
       } break;
 
@@ -679,6 +869,9 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list)
     
     if (!text_op->keep_section_start_after_op) { *section = *cursor; }
 
+    op_processing_done:  
+
+    // TODO: This here should not be after the op_processing_done
     if (text_op->opt_os_event) { os_consume_frame_event(text_op->opt_os_event); }
   }
 }
@@ -689,7 +882,7 @@ void app_update(App_state* S)
   
   OS_Event_list* event_list = os_get_frame_event_list();
   UI_Text_op_list text_ops = ui_text_op_list_from_os_event_list(scratch.arena, os_get_frame_event_list());
-  app_aply_text_ops_to_state(S, text_ops);
+  app_aply_text_ops_to_state(S, text_ops, S->font);
 
   end_scratch(&scratch);
 }

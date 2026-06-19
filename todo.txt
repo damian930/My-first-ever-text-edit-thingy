@@ -1,4 +1,9 @@
-[ ] - 
+[x] - Paste text in
+[x] - Select a section
+[x] - Select a line
+[x] - Select the whole thing (Control + A)
+[x] - Delete the whole line
+[ ] - Delete the whole line not just the text of the line when ctrl + x wtih no section on it
 
 What i expect to have in terms of the architecture when i finish:
   - Text ops are general for multi text and are used as building blocks 

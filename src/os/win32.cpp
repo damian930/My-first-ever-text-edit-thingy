@@ -1186,26 +1186,6 @@ void os_set_cursor(OS_Cursor cursor)
   os_get_state()->window.frame_cursor = cursor;
 }
 
-// OS_Cursor os_get_cursor()
-// {
-//   StaticAssert(OS_Cursor__COUNT == OS_Cursor__pen + 1); // Making sure thet i dont forget to add code to this func if i add a new cursor
-
-//   HCURSOR cursor_handle = GetCursor();
-//   Handle(cursor_handle != Null);
-
-//   HCURSOR win32_arrow = LoadCursor(Null, IDC_ARROW);
-//   HCURSOR win32_hand  = LoadCursor(Null, IDC_HAND);
-//   HCURSOR win32_cross = LoadCursor(Null, IDC_CROSS);
-//   HCURSOR win32_pen   = LoadCursor(Null, MAKEINTRESOURCE(32631)); // note: resource id is used here cause WinUser.h does have a predefined macro for it
-
-//   OS_Cursor cursor = OS_Cursor__arrow;
-//   if      (cursor_handle == win32_arrow) { cursor = OS_Cursor__arrow; }
-//   else if (cursor_handle == win32_hand)  { cursor = OS_Cursor__hand; }
-//   else if (cursor_handle == win32_cross) { cursor = OS_Cursor__crosshair; }
-//   else if (cursor_handle == win32_pen)   { cursor = OS_Cursor__pen; }
-//   return cursor;
-// }
-
 void os_show_cursor(B32 show)
 {
   ShowCursor(show);
@@ -1215,6 +1195,28 @@ U64 os_get_mouse_double_click_max_time_ms()
 {
   U64 time = (U64)GetDoubleClickTime();
   return time;
+}
+
+Str8 os_get_clipboard_text(Arena* arena)
+{
+  Str8 text = {};
+  if (OpenClipboard(os_get_state()->window.handle))
+  {
+    HANDLE ansi_text_handle = GetClipboardData(CF_TEXT);
+    if (ansi_text_handle)
+    {
+      U8* bytes = (U8*)GlobalLock(ansi_text_handle);
+      if (bytes)
+      {
+        text = str8_from_cstr(arena, bytes);
+        B32 succ_unlock = GlobalUnlock(ansi_text_handle);
+        Assert(succ_unlock);
+      }
+      B32 succ_close = CloseClipboard();
+      Assert(succ_close);
+    }
+  }
+  return text;
 }
 
 #endif
