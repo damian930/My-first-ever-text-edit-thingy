@@ -61,6 +61,8 @@ struct D_Command_batch_list {
 };
 
 struct D_State {
+  Arena* state_arena;
+  
   Arena* arena_for_draw_commands;
   D_Command_batch_list command_batch_list;
  
@@ -93,8 +95,11 @@ struct D_State {
   } default_settings;
 };
 
+extern global D_State* __d_g_state;
+
 // - State
 D_State* d_get_state();
+void     d_set_state(D_State* state);
 void     d_init();
 void     d_release();
 

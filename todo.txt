@@ -5,6 +5,8 @@
 [x] - Delete the whole line
 [ ] - Delete the whole line not just the text of the line when ctrl + x wtih no section on it
 
+[x] - Cursor setting via mouse
+[ ] - Clip offset for the text when outside the visible area
 What i expect to have in terms of the architecture when i finish:
   - Text ops are general for multi text and are used as building blocks 
     for any text op. They have no connection to handling of the ops 

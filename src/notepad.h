@@ -4,8 +4,8 @@
 #include "core/core_include.h"
 #include "os/win32.h"
 #include "render/render.h"
-#include "draw/draw.h"
 #include "font_provider/font_provider.h"
+#include "draw/draw.h"
 
 enum UI_Text_op_kind : U32 {  
   UI_Text_op_kind__NONE,
@@ -62,6 +62,8 @@ struct Text_coord {
   U64 y; 
 };
 
+struct Notepad_dll_boundary_data_pass;
+
 struct App_state {
   U8         buffer[1024];
   U64        buffer_count;
@@ -69,9 +71,27 @@ struct App_state {
   Text_coord section_coord;
   
   FP_Font    font;
+
+  B32 just_pressed_mouse;
+  B32 just_scrolled;
+
+  void (*draw_cursor_section_fp) (Notepad_dll_boundary_data_pass* dll_data_pass);
+
+  struct {
+    V2F32 text_clip_offset;
+  } render_data;
 };
 
+struct Notepad_dll_boundary_data_pass {
+  // All the contexts
+  Thread_context* dll_caller_thread_context;
+  OS_State* dll_caller_os_state;
+  D3D_State* dll_caller_render_state;
+  D_State* dll_caller_draw_state;  
+  FP_State* dll_caller_font_provider_state;
 
+  App_state* notepad_state;  
+};
 
 
 #endif

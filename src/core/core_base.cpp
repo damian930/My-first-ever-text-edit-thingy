@@ -16,6 +16,7 @@ B32   v2f32_match (V2F32 v1, V2F32 v2) { return (v1.x == v2.x && v1.y == v2.y); 
 F32   v2f32_len_sq(V2F32 v)            { return (v.x * v.x) + (v.y * v.y); }
 F32   v2f32_len   (V2F32 v)            { return sqrtf(v2f32_len_sq(v)); }
 V2F32 v2f32_sub   (V2F32 v1, V2F32 v2) { return v2f32(v1.x - v2.x, v1.y - v2.y); }
+V2F32 v2f32_add   (V2F32 v1, V2F32 v2) { return v2f32(v1.x + v2.x, v1.y + v2.y); }
 
 ///////////////////////////////////////////////////////////
 // - V2U16 

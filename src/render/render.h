@@ -116,13 +116,15 @@ struct R_Target {
 };
 
 struct D3D_State {
+  Arena* state_arena;
+
   // These we get at initialisation
   ID3D11Device*        device;
   ID3D11DeviceContext* context;
   // 
-  ID3D11RasterizerState*  rasterizer_states[R_Fill_mode__COUNT];
-  ID3D11BlendState*       blend_states[R_Blend_kind__COUNT];
-  ID3D11SamplerState*     sampler;
+  ID3D11RasterizerState* rasterizer_states[R_Fill_mode__COUNT];
+  ID3D11BlendState*      blend_states[R_Blend_kind__COUNT];
+  ID3D11SamplerState*    sampler;
   //
   // ID3D11Texture2D* magenta_black_d3d_texture;
   //
@@ -139,10 +141,12 @@ struct D3D_State {
   R_Program     line_program;
 };
 
-extern global D3D_State __d3d_g_state;
+extern global D3D_State* __d3d_g_state;
 
 // - State
 D3D_State* r_get_state();
+void r_set_state(D3D_State* state);
+
 void r_init();
 void r_relesase();
 

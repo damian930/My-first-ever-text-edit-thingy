@@ -396,6 +396,7 @@ tu_specific B32   v2f32_match (V2F32 v1, V2F32 v2);
 tu_specific F32   v2f32_len_sq(V2F32 v);           
 tu_specific F32   v2f32_len   (V2F32 v);              
 tu_specific V2F32 v2f32_sub   (V2F32 v1, V2F32 v2);   
+tu_specific V2F32 v2f32_add   (V2F32 v1, V2F32 v2);
 
 union V2U16 {
 	struct { U16 x; U16 y; };

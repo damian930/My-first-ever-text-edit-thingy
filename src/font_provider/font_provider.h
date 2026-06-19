@@ -53,6 +53,7 @@ extern global FP_State* __fp_g_state;
 
 // - State
 FP_State* fp_get_state();
+void fp_set_state(FP_State* state);
 void fp_init();
 void fp_release();
 

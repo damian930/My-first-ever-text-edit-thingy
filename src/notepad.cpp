@@ -599,8 +599,10 @@ Text_coord app_move_with_control_right(Str8 str, Text_coord coord)
   return coord;
 }
 
-U64 app_get_text_x_coord_for_x_point(Str8 line, FP_Font font, F32 x_offset)
+U64 app_get_text_x_coord_for_x_point(Str8 line, FP_Font font, F32 x_point, F32 on_screen_offset)
 {
+  x_point += on_screen_offset;
+
   U64 result_cursor_x = 0;
   F32 range_start_pos = 0.0f;
   for EachIndex(i, line.count)
@@ -610,29 +612,31 @@ U64 app_get_text_x_coord_for_x_point(Str8 line, FP_Font font, F32 x_offset)
     RangeF32 char_range = rangeF32(range_start_pos, range_start_pos + char_width);
     range_start_pos += char_width;
     
-    if (rangeF32_within(char_range, x_offset))
+    if (rangeF32_within(char_range, x_point))
     {
       result_cursor_x = i;
-      if (x_offset > rangeF32_center(char_range)) {
+      if (x_point > rangeF32_center(char_range)) {
         result_cursor_x += 1;
       }
       break;
     }
   }
 
-  if (result_cursor_x == 0 && x_offset >= range_start_pos) { 
+  if (result_cursor_x == 0 && x_point >= range_start_pos) { 
     result_cursor_x = line.count;
   } 
 
   return result_cursor_x;
 }
 
-void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_Font font)
+void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_Font font, B32* out_opt_text_changed)
 {
   U8* text_buffer        = S->buffer;
   U64* text_buffer_count = &S->buffer_count;
   Text_coord* cursor     = &S->cursor_coord;
   Text_coord* section    = &S->section_coord;
+
+  B32 did_text_change = false;
 
   for (UI_Text_op* text_op = text_op_list.first; text_op != 0; text_op = text_op->next)
   {
@@ -718,7 +722,7 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
               cursor->y -= 1;
               Str8 line_above = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
               
-              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_above, font, x_offset);
+              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_above, font, x_offset, 0);
               cursor->x = result_cursor_x;
             }
           } break;
@@ -729,7 +733,7 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
 
             Str8 line_before_went_down = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
 
-            if (cursor->y == n_lines) {  cursor->x = line_before_went_down.count;  }
+            if (cursor->y == n_lines - 1) {  cursor->x = line_before_went_down.count;  }
             else 
             {
               Str8 line_part_before_cursor = str8_substring(line_before_went_down, 0, cursor->x);
@@ -738,7 +742,7 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
               cursor->y += 1;
               Str8 line_down = app_get_text_line_for_line_index(text_buffer_str, cursor->y, Null);
               
-              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_down, font, x_offset);
+              U64 result_cursor_x = app_get_text_x_coord_for_x_point(line_down, font, x_offset, 0);
               cursor->x = result_cursor_x;
             }
 
@@ -764,13 +768,10 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
 
       case UI_Text_op_kind__delete_section:
       {
-
-        // todo: Why not just get the index for the text buffer befor the section start
-        //       then get it for the section end, those not have the separateors, then just
-        //      include those in and we good to go ??
-
         if (!text_coord_eq(*cursor, *section))
         {
+          did_text_change = true;
+          
           Scratch scratch = get_scratch(0, 0);
           Str8 text_buffer_str = str8_manual(text_buffer, *text_buffer_count);
 
@@ -794,6 +795,7 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
           
           end_scratch(&scratch);
         }
+      
       } break;
 
       /*
@@ -812,6 +814,8 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
       case UI_Text_op_kind__insert_char_at_cursor:
       case UI_Text_op_kind__paste_at_cursor:
       {
+        did_text_change = true;
+
         Scratch scratch    = get_scratch(0, 0);
         Str8 buffer_as_str = str8_manual(text_buffer, *text_buffer_count);
         
@@ -873,6 +877,44 @@ void app_aply_text_ops_to_state(App_state* S, UI_Text_op_list text_op_list, FP_F
 
     // TODO: This here should not be after the op_processing_done
     if (text_op->opt_os_event) { os_consume_frame_event(text_op->opt_os_event); }
+    if (out_opt_text_changed) { *out_opt_text_changed = did_text_change; }
+  }
+}
+
+U64 app_get_text_line_index_for_mouse_pos(App_state* S, V2F32 mouse_pos, FP_Font font, F32 on_screen_offset)
+{
+  Str8 text_buffer_str = str8_manual(S->buffer, S->buffer_count);
+  
+  F64 line_index_f = (F64)floorf((mouse_pos.y + on_screen_offset) / (fp_font_height(font) + fp_font_line_gap(font)));
+  U64 line_index = (U64)clamp_f64(line_index_f, 0.0f, (F64)u64_max); 
+
+  OutputDebugStringF("Line index: %lld \n", line_index);
+
+  U64 max_line_index = app_get_n_lines(text_buffer_str);
+  if (line_index >= max_line_index) { line_index = max_line_index - 1; }
+  return line_index;
+}
+
+void app_init(App_state* S)
+{
+  S->font = fp_load_font(Str8FromC("../data/Roboto.ttf"), 32, rangeU64(0, (U64)u8_max + 1));
+
+  { // Loading the custom draw function for the cursor
+    Scratch scratch = get_scratch(0, 0);
+    Str8 dll_name_nt = str8_copy_alloc(scratch.arena, Str8FromC("notepad_custom_draw_cursor_dll.dll"));
+    HMODULE module_h = LoadLibraryA((char*)dll_name_nt.data);
+    if (module_h)
+    {
+      Str8 proc_name_nt = str8_copy_alloc(scratch.arena, Str8FromC("app_draw_cursor_section"));
+      void* proc = GetProcAddress(module_h, (char*)proc_name_nt.data); // note: This return 0 if failed to load
+      void (*draw_proc) (Notepad_dll_boundary_data_pass* dll_data_pass) = (void (*) (Notepad_dll_boundary_data_pass* dll_data_pass))proc;
+      
+      if (draw_proc)
+      {
+        S->draw_cursor_section_fp = draw_proc;
+      }
+    }
+    end_scratch(&scratch);
   }
 }
 
@@ -882,7 +924,116 @@ void app_update(App_state* S)
   
   OS_Event_list* event_list = os_get_frame_event_list();
   UI_Text_op_list text_ops = ui_text_op_list_from_os_event_list(scratch.arena, os_get_frame_event_list());
-  app_aply_text_ops_to_state(S, text_ops, S->font);
+  
+  B32 text_changed = false;
+  app_aply_text_ops_to_state(S, text_ops, S->font, &text_changed);
+
+  if (text_changed) { S->just_scrolled = false; }
+
+  // todo: Why not have a is_mouse_down and such things that are synnched to the events, so i dont have to store them
+  //       here myself
+  static B32 was_mouse_down = false;
+  static B32 is_mouse_down = false;
+
+  was_mouse_down = is_mouse_down;
+
+  for (OS_Event* ev = os_get_frame_event_list()->first; ev; ev = ev->next)
+  {
+    if (ev->kind == OS_Event_kind__mouse && ev->mouse_event.button == Mouse_button__left && ev->mouse_event.went_down)
+    {
+      S->just_scrolled = false;
+      S->just_pressed_mouse = true;
+
+      Assert(!was_mouse_down);
+      is_mouse_down = true;
+      os_consume_frame_event(ev);
+    }
+    else if (ev->kind == OS_Event_kind__mouse && ev->mouse_event.button == Mouse_button__left && ev->mouse_event.went_up)
+    {
+      S->just_scrolled = false;
+
+      Assert(was_mouse_down);
+      Assert(is_mouse_down);
+      is_mouse_down = false;
+      os_consume_frame_event(ev);
+    }
+    else if (ev->kind == OS_Event_kind__wheel)
+    {
+      S->just_scrolled = true;
+      S->just_pressed_mouse = false;
+
+      F32* offset = &S->render_data.text_clip_offset.y;
+      *offset += ev->wheel_event.scroll_data * 3;
+
+      F32 max_offset = (app_get_n_lines(str8_manual(S->buffer, S->buffer_count)) - 1) * (fp_font_height(S->font) + fp_font_line_gap(S->font));
+
+      if (*offset > 0) { *offset = 0.0f; }
+      else if (*offset < -max_offset) { *offset = -max_offset; } 
+    }
+  }
+
+  if (is_mouse_down)
+  {
+    V2F32 mouse_pos   = os_get_mouse_pos();
+    U64 line_index    = app_get_text_line_index_for_mouse_pos(S, mouse_pos, S->font, -1 * S->render_data.text_clip_offset.y);
+    Str8 line         = app_get_text_line_for_line_index(str8_manual(S->buffer, S->buffer_count), line_index, Null);
+    U64 index_on_line = app_get_text_x_coord_for_x_point(line, S->font, mouse_pos.x, -1 * S->render_data.text_clip_offset.x);
+    if (!was_mouse_down)
+    {
+      S->cursor_coord   = { index_on_line, line_index };
+      S->section_coord  = S->cursor_coord;
+    }
+    else 
+    {
+      S->cursor_coord   = { index_on_line, line_index };
+    }
+  }
+
+  end_scratch(&scratch);
+}
+
+void app_default_cursor_section_render_func(Notepad_dll_boundary_data_pass* dll_data_pass)
+{
+  Scratch scratch = get_scratch(0, 0);
+
+  App_state* S = dll_data_pass->notepad_state;
+
+  FP_Font font = S->font;
+  Str8 text_str = str8_manual(S->buffer, S->buffer_count);
+
+  F32 cursor_width = 2;
+
+  Str8* lines    = 0;
+  U64 line_count = 0;
+  str8_split_into_array(scratch.arena, text_str, Str8FromC("\n"), 0, true, &lines, &line_count);
+
+  Text_coord cursor_coord      = S->cursor_coord;
+  Str8 cursor_line             = app_get_text_line_for_coord(text_str, cursor_coord, Null);
+  Str8 line_part_before_cursor = str8_substring(cursor_line, 0, cursor_coord.x);
+
+  V2F32 cursor_offset_global = {};
+  cursor_offset_global.x = fp_measure_text(line_part_before_cursor, font).x;
+  cursor_offset_global.y = (cursor_coord.y * (fp_font_height(font) + fp_font_line_gap(font)));
+
+  V2F32 cursor_offset_text_clip_rel = v2f32_add(cursor_offset_global, S->render_data.text_clip_offset);
+
+  // Drawing cursor
+  {
+    d_draw_rect(rect_make(cursor_offset_global.x, cursor_offset_global.y, cursor_width, fp_font_height(font)), nice_blue()); 
+  }
+
+  // Drawing section
+  {
+    Text_coord section_coord      = S->section_coord;
+    Str8 section_line             = app_get_text_line_for_coord(text_str, section_coord, Null);
+    Str8 line_part_before_section = str8_substring(section_line, 0, section_coord.x);
+
+    V2F32 section_offset = {};
+    section_offset.x = fp_measure_text(line_part_before_section, font).x;
+    section_offset.y = (section_coord.y * (fp_font_height(font) + fp_font_line_gap(font)));
+  
+    d_draw_rect(rect_make(section_offset.x, section_offset.y, cursor_width, fp_font_height(font)), red());
+  }
 
   end_scratch(&scratch);
 }
@@ -900,40 +1051,98 @@ void app_render(App_state* S)
   U64 line_count = 0;
   str8_split_into_array(scratch.arena, text_str, Str8FromC("\n"), 0, true, &lines, &line_count);
 
-  // Drawing the lines
-  for EachIndex(line_index, line_count)
-  {
-    Str8 line = lines[line_index];
-
-    F32 line_offset_y = line_index * (fp_font_height(font) + fp_font_line_gap(font));
-    d_draw_text(line, font, v2f32(0, line_offset_y), white());
-  }
-
-  // Drawing cursor
-  {
-    Text_coord cursor_coord      = S->cursor_coord;
-    Str8 cursor_line             = app_get_text_line_for_coord(text_str, cursor_coord, Null);
-    Str8 line_part_before_cursor = str8_substring(cursor_line, 0, cursor_coord.x);
-
-    V2F32 cursor_offset = {};
-    cursor_offset.x = fp_measure_text(line_part_before_cursor, font).x;
-    cursor_offset.y = (cursor_coord.y * (fp_font_height(font) + fp_font_line_gap(font)));
+  Text_coord cursor_coord      = S->cursor_coord;
+  Str8 cursor_line             = app_get_text_line_for_coord(text_str, cursor_coord, Null);
+  Str8 line_part_before_cursor = str8_substring(cursor_line, 0, cursor_coord.x);
   
-    d_draw_rect(rect_make(cursor_offset.x, cursor_offset.y, cursor_width, fp_font_height(font)), nice_blue());
-  }
+  V2F32 cursor_offset_global = {};
+  cursor_offset_global.x = fp_measure_text(line_part_before_cursor, font).x;
+  cursor_offset_global.y = (cursor_coord.y * (fp_font_height(font) + fp_font_line_gap(font)));
 
-  // Drawing section
+  V2F32 cursor_offset_text_clip_rel = v2f32_add(cursor_offset_global, S->render_data.text_clip_offset);
+
+  if (!S->just_scrolled)
   {
-    Text_coord section_coord      = S->section_coord;
-    Str8 section_line             = app_get_text_line_for_coord(text_str, section_coord, Null);
-    Str8 line_part_before_section = str8_substring(section_line, 0, section_coord.x);
-
-    V2F32 section_offset = {};
-    section_offset.x = fp_measure_text(line_part_before_section, font).x;
-    section_offset.y = (section_coord.y * (fp_font_height(font) + fp_font_line_gap(font)));
+    // Adjusting x clip offset
+    {
+      F32 buffer_zone_on_the_left = 0;
+      if (!S->just_pressed_mouse)
+      {
+        if (cursor_coord.x >= 3)
+        {
+          Str8 str = str8_substring(cursor_line, cursor_coord.x - 3, cursor_coord.x);
+          buffer_zone_on_the_left = fp_measure_text(str, S->font).x;    
+        }
+      }
+      
+      F32 buffer_zone_on_the_right = 0;
+      if (!S->just_pressed_mouse)
+      {
+        Str8 str = str8_substring(cursor_line, cursor_coord.x, cursor_coord.x + 3);
+        buffer_zone_on_the_right = fp_measure_text(str, S->font).x;    
+      }
   
-    d_draw_rect(rect_make(section_offset.x, section_offset.y, cursor_width, fp_font_height(font)), red());
+      RangeF32 cursor_valid_offset_range_clip_rel = rangeF32(
+        buffer_zone_on_the_left, 
+        os_get_client_area_dims().x - cursor_width - buffer_zone_on_the_right
+      );
+      if (cursor_offset_text_clip_rel.x > cursor_valid_offset_range_clip_rel.max)
+      {
+        F32 diff = cursor_offset_text_clip_rel.x - cursor_valid_offset_range_clip_rel.max;
+        S->render_data.text_clip_offset.x += -1 * diff;
+      }
+      else if (cursor_offset_text_clip_rel.x < cursor_valid_offset_range_clip_rel.min)
+      {
+        F32 diff = cursor_offset_text_clip_rel.x - cursor_valid_offset_range_clip_rel.min;
+        S->render_data.text_clip_offset.x += -1 * diff;
+      }
+    }
+  
+    // Adjusting y clip offset
+    {
+      F32 bottom_buffer_zone = fp_font_height(S->font) + fp_font_line_gap(S->font);
+  
+      RangeF32 cursor_valid_offset_range_clip_rel = rangeF32(
+        0, 
+        os_get_client_area_dims().y - bottom_buffer_zone
+      );
+      if (cursor_offset_text_clip_rel.y > cursor_valid_offset_range_clip_rel.max)
+      {
+        F32 diff = cursor_offset_text_clip_rel.y - cursor_valid_offset_range_clip_rel.max;
+        S->render_data.text_clip_offset.y += -1 * diff;
+      }
+      else if (cursor_offset_text_clip_rel.y < cursor_valid_offset_range_clip_rel.min)
+      {
+        F32 diff = cursor_offset_text_clip_rel.y - cursor_valid_offset_range_clip_rel.min;
+        S->render_data.text_clip_offset.y += -1 * diff;
+      }
+    }
   }
+
+  D_Offset(S->render_data.text_clip_offset.x, S->render_data.text_clip_offset.y)
+  D_ScissorRect(rect_make_v(v2f32(0, 0), os_get_client_area_dims()))
+  {
+    // Drawing the lines
+    for EachIndex(line_index, line_count)
+    {
+      Str8 line = lines[line_index];
+  
+      F32 line_offset_y = line_index * (fp_font_height(font) + fp_font_line_gap(font));
+      d_draw_text(line, font, v2f32(0, line_offset_y), white());
+    }
+  
+    Notepad_dll_boundary_data_pass dll_data_pass = {};
+    dll_data_pass.dll_caller_thread_context      = get_thread_context();
+    dll_data_pass.dll_caller_os_state            = os_get_state();
+    dll_data_pass.dll_caller_render_state        = r_get_state();
+    dll_data_pass.dll_caller_draw_state          = d_get_state();  
+    dll_data_pass.dll_caller_font_provider_state = fp_get_state();
+    dll_data_pass.notepad_state                  = S;  
+
+    if (S->draw_cursor_section_fp) { S->draw_cursor_section_fp(&dll_data_pass); }
+    else { app_default_cursor_section_render_func(&dll_data_pass); }
+  }
+
 
   end_scratch(&scratch);
 }

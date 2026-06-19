@@ -7,6 +7,7 @@
 #pragma comment (lib, "oneCore.lib")
 //
 // Windows version and build getters
+// TODO: Deal with this
 #include "winnt.h"
 #pragma comment (lib, "ntdll.lib")
 extern "C" __declspec(dllimport) LONG WINAPI RtlGetVersion(RTL_OSVERSIONINFOW* lpVersionInformation);
@@ -58,6 +59,10 @@ global OS_State* __os_g_state            = 0;
 ///////////////////////////////////////////////////////////
 // - State
 //
+OS_State* os_get_state() { return __os_g_state; }
+
+void os_set_state(OS_State* state) { __os_g_state = state; }
+
 void os_init()
 {
   { // Making sure that the windows version that this app is going to run on 
@@ -106,11 +111,6 @@ void os_init()
 void os_release()
 {
   InvalidCodePath();
-}
-
-OS_State* os_get_state()
-{
-  return __os_g_state;
 }
 
 ///////////////////////////////////////////////////////////
@@ -1131,6 +1131,8 @@ LRESULT win32_proc(
       }
       times_wm_paint_has_been_handles += 1;
 
+      // TODO: This asserted when i maximized the window, test this and change 
+      //       the assert and the comment here 
       Assert(times_wm_paint_has_been_handles == 1);
       // For windows that dont use things like gdi but use d3d 11 and such for rendering 
       // those apis dont generate wm_paint. But there is still a single time that wm_paint

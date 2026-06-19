@@ -292,14 +292,29 @@ Str8 str8_chop_back_if_match(Str8 str, Str8 other, Str8_match_flags flags)
   return result;
 }
 
+// Str8 str8_front_from(Str8 str, U64 n, U64 from_index)
+// {
+//   Str8 sub = str8_substring(str, from_index, n + 1);
+//   return sub;
+// }
+
+// Str8 str8_back_from(Str8 str, U64 n, U64 from_index)
+// {
+//   if (n > from_index) {  }
+//   Str8 sub = str8_substring(str, str.count - n, str.count);
+//   return sub;
+// }
+
 Str8 str8_front(Str8 str, U64 n)
 {
+  // return str8_front_from(str, 0, n);
   Str8 sub = str8_substring(str, 0, n);
   return sub;
 }
 
 Str8 str8_back(Str8 str, U64 n)
 {
+  // return str8_back_from(str, n, str.count)
   if (n > str.count) { n = str.count; }
   Str8 sub = str8_substring(str, str.count - n, str.count);
   return sub;

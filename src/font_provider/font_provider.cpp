@@ -27,10 +27,9 @@
 
 global FP_State* __fp_g_state = 0;
 
-FP_State* fp_get_state()
-{
-  return __fp_g_state;
-}
+FP_State* fp_get_state() { return __fp_g_state; }
+
+void fp_set_state(FP_State* state) { __fp_g_state = state; }
 
 void fp_init()
 {

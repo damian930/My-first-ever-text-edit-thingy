@@ -216,9 +216,10 @@ struct OS_Mouse_button_state {
 };
 
 // - State
+OS_State* os_get_state();
+void os_set_state(OS_State* state);
 void os_init();
 void os_release();
-OS_State* os_get_state();
 
 // - Files
 // todo: Remove this, i dont like this 

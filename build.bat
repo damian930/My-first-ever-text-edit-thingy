@@ -78,9 +78,11 @@ if not exist build mkdir build
 :: Possible compilations targets
 pushd build
 
-if "%glfw_learning%"=="1"  set build_succ=1 && %compile% ../src/__samples/glfw_learning.cpp %linker% /OUT:"glfw_learning.exe"
-if "%test_main%"=="1"      set build_succ=1 && %compile% ../src/__samples/test_main.cpp %linker% /OUT:"test_main.exe"
-if "%notepad%"=="1"        set build_succ=1 && %compile% ../src/main.cpp %linker% /OUT:"notepad.exe"
+if "%glfw_learning%"=="1"     set build_succ=1 && %compile% ../src/__samples/glfw_learning.cpp %linker% /OUT:"glfw_learning.exe"
+if "%test_main%"=="1"         set build_succ=1 && %compile% ../src/__samples/test_main.cpp %linker% /OUT:"test_main.exe"
+if "%notepad%"=="1"           set build_succ=1 && %compile% ../src/main.cpp %linker% /OUT:"notepad.exe"
+if "%notepad_dll_draw%"=="1"  set build_succ=1 && %compile% ../src/notepad_custom_draw_cursor_dll.cpp %linker% /OUT:"notepad_custom_draw_cursor_dll.dll" /DLL /MAP 
+:: /PDB:"pclarity_ui__%RANDOM%.pdb"
 
 popd
 

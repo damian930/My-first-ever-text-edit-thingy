@@ -36,23 +36,25 @@
 #include "__third_party/stb/stb_image.h"
 #endif
 
-global D3D_State __d3d_g_state = {};
+global D3D_State* __d3d_g_state = 0;
 
 #define HR(cond) Handle(cond == S_OK)
 
 ///////////////////////////////////////////////////////////
 // - State
 //
-D3D_State* r_get_state()
-{
-  return &__d3d_g_state;
-}
+D3D_State* r_get_state() { return __d3d_g_state; }
+void r_set_state(D3D_State* state) { __d3d_g_state = state; }
 
 void r_init()
 {
-  D3D_State* d3d = r_get_state();
-
   HRESULT hr = S_OK;
+
+  Arena* state_arena = arena_alloc(Kilobytes(4), false, 0);
+  __d3d_g_state = ArenaPush(state_arena, D3D_State);
+  __d3d_g_state->state_arena = state_arena; 
+
+  D3D_State* d3d = __d3d_g_state;
 
   // Device, Context
   {

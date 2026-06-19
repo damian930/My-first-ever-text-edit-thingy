@@ -12,19 +12,27 @@
 ///////////////////////////////////////////////////////////
 // - State 
 //
-global D_State __d_g_state = {};
+global D_State* __d_g_state = 0;
 
-D_State* d_get_state() { return &__d_g_state; }
+D_State* d_get_state() { return __d_g_state; }
+
+void d_set_state(D_State* state) { __d_g_state = state; }
 
 void d_init()
 {
-  __d_g_state.arena_for_draw_commands = arena_alloc(Megabytes(64), false, 0);
+  Arena* state_arena = arena_alloc(Kilobytes(8), false, 0);
+  __d_g_state = ArenaPush(state_arena, D_State);
+  __d_g_state->state_arena = state_arena;
+
+  __d_g_state->arena_for_draw_commands = arena_alloc(Megabytes(64), false, 0);
 }
 
 void d_release() 
 { 
-  arena_release(&__d_g_state.arena_for_draw_commands);
-  __d_g_state = D_State{};
+  arena_release(&__d_g_state->arena_for_draw_commands);
+
+  arena_release(&__d_g_state->state_arena);
+  __d_g_state = 0;
 }
 
 ///////////////////////////////////////////////////////////
@@ -155,7 +163,7 @@ void d_add_texture_command(R_Target texture, Rect dest_rect, Rect src_rect, V4F3
   D_Command_batch* batch = d_get_or_add_batch_for_settings(D_Command_type__Texture, texture);
 
   dest_rect.x += __d_get_current_offset_x();
-  dest_rect.x += __d_get_current_offset_y();
+  dest_rect.y += __d_get_current_offset_y();
 
   D_Command command = {};
   command.u.texture_c.dest_rect = dest_rect;
